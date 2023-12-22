@@ -9,75 +9,179 @@ na 5.5:
 - wyszukiwanie obrazów po wpisaniu opisu
 - web crawler
 """
-
+import enum
 import os
 import logging
 import pandas as pd
 import re
-import PySimpleGUI as sg
 import docx2txt as docx  # pip install docx2txt
 from odf import text, teletype
 from odf.opendocument import load
 import fitz as pdf  # pip install PyMuPDF
-
-sg.theme('DarkAmber')
-
-root = "/home/gruzin/Downloads"
-
-logging.basicConfig(level=logging.DEBUG)
+import charset_normalizer
+import matplotlib.pyplot as plt
 
 
-def find_in_file(file_ctx, search):
-    return re.findall(search, file_ctx)  # using re for added regex availability
+class FileMatch:
+    def __init__(self, filename, string, reference):
+        self.filename = filename
+        self.string = string
+        self.reference = reference
 
 
-def find_sentence(file_ctx, search):
-    """
-    This regex is fucked
-    Its point is to match sentences containing searched value
-    :param file_ctx:
-    :param search:
-    :return:
-    """
-    return re.findall(r"([^.]*?{}[^.]*\.)".format(search), file_ctx)
+class MatchArray:
+    def __init__(self, root_directory):
+        self.root = root_directory
+        self.groups = []
+
+    def __getitem__(self, item):
+        return self.groups[item]
+
+    def append(self, item):
+        return self.groups.append(item)
+
+    @property
+    def files(self):
+        return set([group.filename for group in self.groups])
+
+    @property
+    def match_strings(self):
+        return set([group.string for group in self.groups])
+
+    def matches_per_file(self):
+        matches = {}
+        for group in self.groups:
+            if group.filename not in matches:
+                matches[group.filename] = {}
+            matches[group.filename][group.string] = matches[group.filename].get(group.string, 0) + 1
+        return matches
+
+    def calculate_matches_per_file_dict(self):
+        matches = self.matches_per_file()
+        response = {}
+        for file, hits in matches.items():
+            for string in self.match_strings:
+                response[string] = response.get(string, []) + [hits.get(string, 0.2)]
+        return response
+
+    def draw_matches_per_file_graph(self):
+        matches = self.matches_per_file()
+        plt.figure(figsize=(10, 10))
+        bar_width = 1 / (len(self.match_strings) + 1)
+        ax = plt.subplot(111)
+        for j, items in enumerate((tmp := self.calculate_matches_per_file_dict()).items()):
+            string, matches_arr = items
+            ax.bar([base_pos + bar_width*(j + 0.5) for base_pos in range(len(matches_arr))], matches_arr, label=string, width=bar_width)
+        # plt.bar([parsed if len(parsed) < 32 else parsed[:14] + "[...]" + parsed[-14:] for key in matches.keys() if (parsed := key.split("/")[-1]) != None], matches.values())
+        # plt.xticks(rotation=90)
+        plt.show()
+        ax.legend()
+        plt.grid(True, "major", "x")
+        plt.xticks([base_pos + bar_width*(len(self.match_strings)/2 + 0.5) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files])
+
+class Reference(enum.Enum):
+    SENTENCE = "sentence"
+    LINE = "line"
 
 
-clue = "[Ii]mię [Ii] [Nn]azwisko"
-findings = []
+class Searcher:
+    def __init__(self, root_directory, reference: Reference = Reference.LINE):
+        self.dir = root_directory
+        self.normalize: bool = True
+        self.reference: Reference = reference
 
-tmp = os.walk(root)
-for root, dirs, files in os.walk(root):
-    for file in files:
-        if "Dokument" in file:
-            logging.debug("debug")
-        if file.endswith(".docx"):
-            logging.debug(os.path.join(root, file))
-            doc = docx.process(os.path.join(root, file))
-            logging.debug(doc)
-        elif file.endswith(".odt"):
-            logging.debug(os.path.join(root, file))
-            doc = load(os.path.join(root, file))
-            doc = [teletype.extractText(p) for p in doc.getElementsByType(text.P)]
-            logging.debug(doc := "\n".join(doc))
-        elif file.endswith(".pdf"):
-            logging.debug(os.path.join(root, file))
-            doc = pdf.open(os.path.join(root, file))
-            doc = [page.get_text() for page in doc]
-            logging.debug(doc := "\n".join(doc))
-        elif file.endswith(".txt"):
-            logging.debug(os.path.join(root, file))
-            for encoding in ("utf-8", "cp1250"):
-                try:
-                    with open(os.path.join(root, file), 'r') as f:
-                        doc = f.read()
-                        break
-                except UnicodeDecodeError:
-                    continue
-            logging.debug(doc)
+    def find_in_file(self, file_ctx, search):
+        p = re.compile(search)
+        return p.finditer(file_ctx)
+
+    def find_sentence(self, file_ctx, search):
+        """
+        This regex is fucked
+        Its point is to match sentences containing searched value
+        :param file_ctx:
+        :param search:
+        :return:
+        """
+        p = re.compile(r"([^.]*?{}[^.]*[\.]?)".format(search))
+        return p.finditer(file_ctx)
+
+    def find_line(self, file_ctx, search):
+        p = re.compile(fr'.*{search}.*\n?')
+        return p.finditer(file_ctx)
+
+    def find_reference(self, file_ctx, search: re.Match):
+        if self.reference == Reference.LINE:
+            reference_arr: list[re.Match] = self.find_line(file_ctx, search.group())
+        elif self.reference == Reference.SENTENCE:
+            reference_arr: list[re.Match] = self.find_sentence(file_ctx, search.group())
         else:
-            continue
-        if tmp := find_in_file(doc, clue):
-            findings.append((os.path.join(root, file), tmp))
-            logging.info(tmp)
+            raise AttributeError("Incorrect reference type")
 
-logging.info(findings)
+        coordinate_arr = [((reference.start(), reference.end()), reference.group()) for reference in reference_arr]
+
+        # TODO: implement more optimal search algorithm
+        for i in range(len(coordinate_arr)):
+            if coordinate_arr[i][0][0] <= search.start() <= coordinate_arr[i][0][1]:
+                return coordinate_arr[i][0]
+
+
+    def match(self, search, *, regex: bool = True):
+        findings = MatchArray(self.dir)
+        tmp = os.walk(self.dir)
+        if not regex:
+            search = re.escape(search)
+        for root, dirs, files in tmp:
+            for file in files:
+                if "Dokument" in file:
+                    logging.debug("debug")
+                if file.endswith(".docx"):
+                    logging.debug(os.path.join(root, file))
+                    doc = docx.process(os.path.join(root, file))
+                    logging.debug(doc)
+                elif file.endswith(".odt"):
+                    logging.debug(os.path.join(root, file))
+                    doc = load(os.path.join(root, file))
+                    doc = [teletype.extractText(p) for p in doc.getElementsByType(text.P)]
+                    logging.debug(doc := "\n".join(doc))
+                elif file.endswith(".pdf"):
+                    try:
+                        logging.debug(os.path.join(root, file))
+                        doc = pdf.open(os.path.join(root, file))
+                        doc = [page.get_text() for page in doc]
+                        logging.debug(doc := "\n".join(doc))
+                    except ValueError as e:
+                        logging.warning(e)
+                        doc = ""
+                else:
+                    logging.debug(os.path.join(root, file))
+                    if not self.normalize:
+                        try:
+                            with open(os.path.join(root, file), 'r') as f:
+                                doc = f.read()
+                        except UnicodeDecodeError:
+                            logging.warning("Could not match encoding for file " + str(os.path.join(root, file)))
+                            doc = ""
+                    else:
+                        normalizer_file = charset_normalizer.from_path(os.path.join(root, file))
+                        doc = str(normalizer_file.best())
+                    logging.debug(doc)
+
+                if tmp := self.find_in_file(doc, search):
+                    # TODO: shits itself when there are multiple matches per reference
+                    # for match in tmp:
+                    #     findings.append(FileMatch(os.path.join(root, file), match, self.find_reference(doc, match)))
+                    for m in tmp:
+                        print(m.group(), m.start(), m.end())
+                        findings.append(FileMatch(os.path.join(root, file), m.group(), self.find_reference(doc, m)))
+        return findings
+
+
+if __name__ == "__main__":
+    root = "/home/gruzin/Downloads"
+    # clue = "[Ww]nios"
+    clue = "[Ii]mi[eę] [Ii] [Nn]azwisko"
+    logging.basicConfig(level=logging.INFO)
+
+    search = Searcher(root, Reference.SENTENCE)
+    matches = search.match(clue)
+    matches.draw_matches_per_file_graph()
