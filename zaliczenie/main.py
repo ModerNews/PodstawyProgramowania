@@ -12,6 +12,8 @@ na 5.5:
 import enum
 import os
 import logging
+
+import matplotlib.figure
 import pandas as pd
 import re
 import docx2txt as docx  # pip install docx2txt
@@ -30,8 +32,9 @@ class FileMatch:
 
 
 class MatchArray:
-    def __init__(self, root_directory):
+    def __init__(self, root_directory, search_string):
         self.root = root_directory
+        self.search_string = search_string
         self.groups = []
 
     def __getitem__(self, item):
@@ -56,6 +59,12 @@ class MatchArray:
             matches[group.filename][group.string] = matches[group.filename].get(group.string, 0) + 1
         return matches
 
+    def matches_per_string(self):
+        matches = {}
+        for group in self.groups:
+            matches[group.string] = matches.get(group.string, 0) + 1
+        return matches
+
     def calculate_matches_per_file_dict(self):
         matches = self.matches_per_file()
         response = {}
@@ -64,20 +73,32 @@ class MatchArray:
                 response[string] = response.get(string, []) + [hits.get(string, 0.2)]
         return response
 
-    def draw_matches_per_file_graph(self):
+    def draw_matches_per_file_graph(self, ax: ):
         matches = self.matches_per_file()
-        plt.figure(figsize=(10, 10))
         bar_width = 1 / (len(self.match_strings) + 1)
-        ax = plt.subplot(111)
         for j, items in enumerate((tmp := self.calculate_matches_per_file_dict()).items()):
             string, matches_arr = items
             ax.bar([base_pos + bar_width*(j + 0.5) for base_pos in range(len(matches_arr))], matches_arr, label=string, width=bar_width)
-        # plt.bar([parsed if len(parsed) < 32 else parsed[:14] + "[...]" + parsed[-14:] for key in matches.keys() if (parsed := key.split("/")[-1]) != None], matches.values())
-        # plt.xticks(rotation=90)
-        plt.show()
-        ax.legend()
-        plt.grid(True, "major", "x")
-        plt.xticks([base_pos + bar_width*(len(self.match_strings)/2 + 0.5) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files])
+        plt.title(f"Strings that matched \"{self.search_string}\" query")
+        ax.legend(fontsize=8)
+        ax.grid(True, "major", "y")
+        ax.ylabel("Number of found words")
+        ax.yticks(range(0, max([max(file.values()) for file in matches.values()]) + 1))
+        # TODO: Overlapping labels
+        ax.xlabel("Files in which matches were found")
+        ax.xticks([base_pos + bar_width*(len(self.match_strings)/2) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files], fontsize=8)
+
+    def arr_to_csv(self):
+        plt.figure(dpi=600)
+        matches = self.calculate_matches_per_file_dict()
+        arr = []
+        for key, value in matches.items():
+            arr.append([key] + value)
+        return [[''] + [file.split("/")[-1] for file in self.files]] + arr
+
+    def draw_match_table(self, ax):
+        ax.table(cellText=self.arr_to_csv())
+
 
 class Reference(enum.Enum):
     SENTENCE = "sentence"
@@ -126,7 +147,7 @@ class Searcher:
 
 
     def match(self, search, *, regex: bool = True):
-        findings = MatchArray(self.dir)
+        findings = MatchArray(self.dir, search)
         tmp = os.walk(self.dir)
         if not regex:
             search = re.escape(search)
@@ -184,4 +205,14 @@ if __name__ == "__main__":
 
     search = Searcher(root, Reference.SENTENCE)
     matches = search.match(clue)
-    matches.draw_matches_per_file_graph()
+
+    plt.figure(dpi=600)
+
+    ax = plt.subplot(111)
+    matches.draw_matches_per_file_graph(ax)
+
+    ax = plt.subplot(222)
+    matches.draw_match_table(ax)
+
+    plt.show()
+
