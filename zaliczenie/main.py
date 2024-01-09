@@ -73,20 +73,21 @@ class MatchArray:
                 response[string] = response.get(string, []) + [hits.get(string, 0.2)]
         return response
 
-    def draw_matches_per_file_graph(self, ax: ):
+    def draw_matches_per_file_graph(self):
         matches = self.matches_per_file()
         bar_width = 1 / (len(self.match_strings) + 1)
+        ax = plt.subplot(111)
         for j, items in enumerate((tmp := self.calculate_matches_per_file_dict()).items()):
             string, matches_arr = items
             ax.bar([base_pos + bar_width*(j + 0.5) for base_pos in range(len(matches_arr))], matches_arr, label=string, width=bar_width)
         plt.title(f"Strings that matched \"{self.search_string}\" query")
-        ax.legend(fontsize=8)
-        ax.grid(True, "major", "y")
-        ax.ylabel("Number of found words")
-        ax.yticks(range(0, max([max(file.values()) for file in matches.values()]) + 1))
+        plt.legend(fontsize=8)
+        plt.grid(True, "major", "y")
+        plt.ylabel("Number of found words")
+        plt.yticks(range(0, max([max(file.values()) for file in matches.values()]) + 1))
         # TODO: Overlapping labels
-        ax.xlabel("Files in which matches were found")
-        ax.xticks([base_pos + bar_width*(len(self.match_strings)/2) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files], fontsize=8)
+        plt.xlabel("Files in which matches were found")
+        plt.xticks([base_pos + bar_width*(len(self.match_strings)/2) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files], fontsize=8)
 
     def arr_to_csv(self):
         plt.figure(dpi=600)
@@ -208,11 +209,11 @@ if __name__ == "__main__":
 
     plt.figure(dpi=600)
 
-    ax = plt.subplot(111)
-    matches.draw_matches_per_file_graph(ax)
+    matches.draw_matches_per_file_graph()
 
-    ax = plt.subplot(222)
-    matches.draw_match_table(ax)
+    # ax = plt.subplot(222)
+    # matches.draw_match_table(ax)
 
-    plt.show()
+    # plt.show()
+    plt.savefig("graph.png")
 

@@ -2,23 +2,64 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.2"/>
+  <object class="GtkDialog" id="GraphLookupDialog">
+    <property name="can-focus">False</property>
+    <property name="title" translatable="yes">Podgląd Wykresu</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="layout-style">end</property>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkImage" id="graphImage">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="stock">gtk-missing-image</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkWindow" id="MainWindow">
     <property name="can-focus">False</property>
     <property name="double-buffered">False</property>
+    <property name="title" translatable="yes">Wyszukiwanie tekstu w ścieżce</property>
     <property name="window-position">center</property>
     <property name="icon-name">dialog-information</property>
+    <signal name="delete-event" handler="onDeleteWindow" swapped="no"/>
     <child>
       <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
+        <property name="halign">center</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkLabel" id="label">
+          <object class="GtkToolbar">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="margin-top">15</property>
-            <property name="margin-bottom">5</property>
-            <property name="label" translatable="yes">Input target string and directory</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -27,66 +68,12 @@
           </packing>
         </child>
         <child>
-          <!-- n-columns=4 n-rows=1 -->
-          <object class="GtkGrid" id="MainGrid">
+          <object class="GtkLabel" id="label">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <child>
-              <object class="GtkEntry">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="halign">center</property>
-                <property name="margin-left">50</property>
-                <property name="margin-right">15</property>
-                <property name="placeholder-text" translatable="yes">Input string</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkFileChooserButton">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="halign">center</property>
-                <property name="margin-left">15</property>
-                <property name="margin-right">15</property>
-                <property name="action">select-folder</property>
-                <property name="title" translatable="yes"/>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton" id="process_dispatch">
-                <property name="label" translatable="yes">button</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="halign">center</property>
-                <property name="margin-left">15</property>
-                <property name="margin-right">15</property>
-                <signal name="clicked" handler="onButtonPressed" object="__glade_unnamed_2" swapped="no"/>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkSpinner" id="processing_indicator">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="margin-right">25</property>
-              </object>
-              <packing>
-                <property name="left-attach">3</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
+            <property name="margin-top">15</property>
+            <property name="margin-bottom">5</property>
+            <property name="label" translatable="yes">Podaj poszukiwany tekst i ścieżkę docelową</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -95,12 +82,100 @@
           </packing>
         </child>
         <child>
-          <placeholder/>
+          <!-- n-columns=3 n-rows=1 -->
+          <object class="GtkGrid" id="input_grid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <child>
+              <object class="GtkEntry" id="input_query">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="halign">center</property>
+                <property name="margin-right">15</property>
+                <property name="placeholder-text" translatable="yes">Poszukiwany teskt</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFileChooserButton" id="input_directory">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="tooltip-text" translatable="yes">Ścieżka, którą aplikacja przeiteruje w poszukiwaniu podanej treści</property>
+                <property name="halign">center</property>
+                <property name="margin-left">15</property>
+                <property name="margin-right">15</property>
+                <property name="action">select-folder</property>
+                <property name="title" translatable="yes">Ścieżka docelowa</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="process_dispatch">
+                <property name="label" translatable="yes">Szukaj</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="tooltip-text" translatable="yes">Rozpocznij wyszukiwanie</property>
+                <property name="halign">center</property>
+                <property name="margin-left">15</property>
+                <signal name="clicked" handler="onButtonPressed" object="MainGrid" swapped="no"/>
+              </object>
+              <packing>
+                <property name="left-attach">2</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <!-- n-columns=2 n-rows=1 -->
+          <object class="GtkGrid" id="processing_indicator_grid">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="margin-top">15</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <property name="label" translatable="yes">Przetwarzamy twoje zapytanie, proszę czekać </property>
+                <property name="justify">center</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSpinner" id="processing_indicator">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="active">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
         </child>
       </object>
-    </child>
-    <child type="titlebar">
-      <placeholder/>
     </child>
   </object>
 </interface>
