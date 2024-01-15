@@ -25,10 +25,12 @@
                   <object class="GtkBox" id="result_container">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="margin-left">15</property>
+                    <property name="margin-right">15</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <!-- n-columns=2 n-rows=1 -->
-                      <object class="GtkGrid" id="resultbox2">
+                      <object class="GtkGrid" id="resultbox_error">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="halign">center</property>
@@ -37,7 +39,8 @@
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">start</property>
-                            <property name="label" translatable="yes">This is example matched text</property>
+                            <property name="label" translatable="yes">Nie udało się znaleźć żadnego tektu odpowiadjącego zapytaniu</property>
+                            <property name="wrap">True</property>
                             <attributes>
                               <attribute name="font-desc" value="JetBrainsMono Nerd Font 12"/>
                               <attribute name="style" value="normal"/>
@@ -51,23 +54,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkAccelLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="halign">end</property>
-                            <property name="label" translatable="yes">filename</property>
-                            <property name="justify">right</property>
-                            <attributes>
-                              <attribute name="font-desc" value="JetBrainsMono Nerd Font Ultra-Light 10"/>
-                              <attribute name="style" value="italic"/>
-                              <attribute name="weight" value="thin"/>
-                              <attribute name="variant" value="normal"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="top-attach">0</property>
-                          </packing>
+                          <placeholder/>
                         </child>
                       </object>
                       <packing>
@@ -77,104 +64,10 @@
                       </packing>
                     </child>
                     <child>
-                      <!-- n-columns=2 n-rows=1 -->
-                      <object class="GtkGrid" id="resultbox1">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="halign">center</property>
-                        <child>
-                          <object class="GtkAccelLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="halign">start</property>
-                            <property name="label" translatable="yes">This is example matched text</property>
-                            <attributes>
-                              <attribute name="font-desc" value="JetBrainsMono Nerd Font 12"/>
-                              <attribute name="style" value="normal"/>
-                              <attribute name="weight" value="normal"/>
-                              <attribute name="variant" value="normal"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left-attach">0</property>
-                            <property name="top-attach">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkAccelLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="halign">end</property>
-                            <property name="label" translatable="yes">filename</property>
-                            <property name="justify">right</property>
-                            <attributes>
-                              <attribute name="font-desc" value="JetBrainsMono Nerd Font Ultra-Light 10"/>
-                              <attribute name="style" value="italic"/>
-                              <attribute name="weight" value="thin"/>
-                              <attribute name="variant" value="normal"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="top-attach">0</property>
-                          </packing>
-                        </child>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                     <child>
-                      <!-- n-columns=2 n-rows=1 -->
-                      <object class="GtkGrid" id="resultbox3">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="halign">center</property>
-                        <child>
-                          <object class="GtkAccelLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="halign">start</property>
-                            <property name="label" translatable="yes">This is example matched text</property>
-                            <attributes>
-                              <attribute name="font-desc" value="JetBrainsMono Nerd Font 12"/>
-                              <attribute name="style" value="normal"/>
-                              <attribute name="weight" value="normal"/>
-                              <attribute name="variant" value="normal"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left-attach">0</property>
-                            <property name="top-attach">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkAccelLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="halign">end</property>
-                            <property name="label" translatable="yes">filename</property>
-                            <property name="justify">right</property>
-                            <attributes>
-                              <attribute name="font-desc" value="JetBrainsMono Nerd Font Ultra-Light 10"/>
-                              <attribute name="style" value="italic"/>
-                              <attribute name="weight" value="thin"/>
-                              <attribute name="variant" value="normal"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="top-attach">0</property>
-                          </packing>
-                        </child>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                   </object>
                 </child>
@@ -244,7 +137,7 @@ Trafienia</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkLabel" id="all_matches">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">0</property>
@@ -256,7 +149,7 @@ Trafienia</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkLabel" id="unique_matches">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">0</property>
@@ -268,7 +161,7 @@ Trafienia</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel">
+                  <object class="GtkLabel" id="unique_file_matches">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">0</property>

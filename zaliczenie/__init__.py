@@ -1,11 +1,16 @@
 import copy
+import shutil
 import sys
+import os
+import platform
 
 import gi
+import matplotlib.pyplot as plt
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Pango, GdkPixbuf
 from gi.repository.GdkPixbuf import Pixbuf, InterpType
+from main import Searcher, MatchArray, Reference
 
 
 class Filters:
@@ -37,11 +42,14 @@ class ObjectCustomizer:
     def __init__(self, builder):
         self.builder = builder
 
-    def instantiate_result_window(self):
-        results = self.builder.get_object("ResultWindow")
+    def instantiate_result_window(self, results: MatchArray):
+        results_window = self.builder.get_object("ResultWindow")
         result_container: Gtk.Box = builder.get_object("result_container")
-        # template_result: Gtk.Grid = builder.get_object("resultbox1")
-        for i in range(100):
+        if len(results.groups) == 0:
+            return results_window
+        else:
+            result_container.remove(self.builder.get_object("resultbox_error"))
+        for group in results:
             new_result = Gtk.Grid()
             new_result.set_property("visible", True)
             new_result.set_property("can-focus", False)
@@ -51,28 +59,29 @@ class ObjectCustomizer:
             new_match_string.set_property("visible", True)
             new_match_string.set_property("can-focus", False)
             new_match_string.set_property("halign", Gtk.Align.START)
-            new_match_string.set_property("label", "Twoja Stara")
+            new_match_string.set_property("label", group.reference)
             new_match_string.modify_font(Pango.font_description_from_string("JetBrainsMono Nerd Font 12"))
 
             new_match_file = Gtk.Label()
             new_match_file.set_property("visible", True)
             new_match_file.set_property("can-focus", False)
             new_match_file.set_property("halign", Gtk.Align.END)
-            new_match_file.set_property("label", "Zapierdala")
+            new_match_file.set_property("label", str(os.path.join("./", os.path.relpath(group.filename, results.root))))
+            new_match_file.set_margin_start(15)
             new_match_file.modify_font(Pango.font_description_from_string("JetBrainsMono Nerd Font Ultra-Light 10"))
 
             new_result.attach(new_match_string, 0, 0, 1, 1)
             new_result.attach(new_match_file, 1, 0, 1, 1)
             result_container.add(new_result)
-        return results
+        return results_window
 
     def instance_graph_dialog(self):
         graph: Gtk.Dialog = self.builder.get_object("GraphLookupDialog")
 
         desired_width = 640
-        desired_height = 360
+        desired_height = 640
 
-        pixbuf = Pixbuf.new_from_file('graph.png')
+        pixbuf = Pixbuf.new_from_file(os.path.join(GLib.get_tmp_dir(), "graph.png"))
         pixbuf = pixbuf.scale_simple(desired_width, desired_height, InterpType.BILINEAR)
         builder.get_object("graphImage").set_from_pixbuf(pixbuf)
         graph.add_button("Zapisz", Gtk.ResponseType.OK)
@@ -101,8 +110,19 @@ class Handler:
 
         self.builder.add_from_file('results.ui')  # Add new from file to assert that contents of window aren't destroyed
         self.builder.connect_signals(self)
-        result = self.object_builder.instantiate_result_window()
+        search = Searcher(input_directory, Reference.LINE)
+        match = search.match(entry_text)
+        result = self.object_builder.instantiate_result_window(match)
+        if len(match.groups) == 0:
+            self.builder.get_object("processing_indicator_grid").set_property("visible", False)
+            self.showErrorDialog("Nie znaleziono żadnych dopasowań!")
+            return
+        plt.figure(dpi=600)
+        match.draw_matches_per_file_graph()
+        plt.savefig(os.path.join(GLib.get_tmp_dir(), "graph.png"))
+
         result.show_all()
+        self.builder.get_object("processing_indicator_grid").set_property("visible", False)
 
     def showErrorDialog(self, message: str):
         dialog = Gtk.MessageDialog(parent=self.builder.get_object("MainWindow"),
@@ -159,7 +179,7 @@ class Handler:
     def onSaveGraphDialogResponse(self, dialog: Gtk.FileChooserDialog, response: Gtk.ResponseType):
         if response == Gtk.ResponseType.OK:
             print("Saving graph to", dialog.get_filename())
-            # TODO: Save graph
+            shutil.move(os.path.join(GLib.get_tmp_dir(), "graph.png"), dialog.get_filename())
         dialog.close()
 
     def onSaveResultsDialogResponse(self, dialog: Gtk.FileChooserDialog, response: Gtk.ResponseType):
@@ -178,7 +198,6 @@ handler = Handler(builder)
 builder.connect_signals(handler)
 
 window = builder.get_object("MainWindow")
-# window.
 window.show_all()
 builder.get_object("processing_indicator_grid").set_property("visible",
                                                              False)  # Hide processing indicator, since template is visible by default

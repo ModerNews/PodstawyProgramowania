@@ -144,8 +144,7 @@ class Searcher:
         # TODO: implement more optimal search algorithm
         for i in range(len(coordinate_arr)):
             if coordinate_arr[i][0][0] <= search.start() <= coordinate_arr[i][0][1]:
-                return coordinate_arr[i][0]
-
+                return coordinate_arr[i][1].replace("\n", " ")
 
     def match(self, search, *, regex: bool = True):
         findings = MatchArray(self.dir, search)
