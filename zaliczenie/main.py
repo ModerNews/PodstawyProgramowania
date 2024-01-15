@@ -22,6 +22,8 @@ from odf.opendocument import load
 import fitz as pdf  # pip install PyMuPDF
 import charset_normalizer
 import matplotlib.pyplot as plt
+from gi.repository import Pango
+matplotlib.rcParams.update({'figure.autolayout': True})
 
 
 class FileMatch:
@@ -45,7 +47,7 @@ class MatchArray:
 
     @property
     def files(self):
-        return set([group.filename for group in self.groups])
+        return list(self.matches_per_file().keys())
 
     @property
     def match_strings(self):
@@ -70,8 +72,13 @@ class MatchArray:
         response = {}
         for file, hits in matches.items():
             for string in self.match_strings:
-                response[string] = response.get(string, []) + [hits.get(string, 0.2)]
+                response[string] = response.get(string, []) + [hits.get(string, 0)]
         return response
+
+    def write_matches_per_file_to_csv_file(self, filename="matches.csv"):
+        matches, strings = self.calculate_matches_per_file_dict(), self.match_strings
+        with open(filename, "w+") as file:
+            file.write("\n".join(["; ".join([""] + [os.path.relpath(path, self.root) for path in self.files])] + ["; ".join([key] + [str(value) for value in values]) for key, values in matches.items()]))
 
     def draw_matches_per_file_graph(self):
         matches = self.matches_per_file()
@@ -80,14 +87,14 @@ class MatchArray:
         for j, items in enumerate((tmp := self.calculate_matches_per_file_dict()).items()):
             string, matches_arr = items
             ax.bar([base_pos + bar_width*(j + 0.5) for base_pos in range(len(matches_arr))], matches_arr, label=string, width=bar_width)
-        plt.title(f"Strings that matched \"{self.search_string}\" query")
+        plt.title(f"Ciągi znaków, które udało się dopasować do:\n{self.search_string}")
         plt.legend(fontsize=8)
         plt.grid(True, "major", "y")
-        plt.ylabel("Number of found words")
+        plt.ylabel("Liczba dopasowań")
         plt.yticks(range(0, max([max(file.values()) for file in matches.values()]) + 1))
         # TODO: Overlapping labels
-        plt.xlabel("Files in which matches were found")
-        plt.xticks([base_pos + bar_width*(len(self.match_strings)/2) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files], fontsize=8)
+        plt.xlabel("Pliki, w których znaleziono dopasowania")
+        plt.xticks([base_pos + bar_width*(len(self.match_strings)/2) for base_pos in range(len(matches_arr))], [os.path.relpath(path, self.root) for path in self.files], fontsize=8, rotation=20, ha="right")
 
     def arr_to_csv(self):
         plt.figure(dpi=600)
@@ -133,9 +140,9 @@ class Searcher:
 
     def find_reference(self, file_ctx, search: re.Match):
         if self.reference == Reference.LINE:
-            reference_arr: list[re.Match] = self.find_line(file_ctx, search.group())
+            reference_arr: list[re.Match] = self.find_line(file_ctx, re.escape(search.group()))
         elif self.reference == Reference.SENTENCE:
-            reference_arr: list[re.Match] = self.find_sentence(file_ctx, search.group())
+            reference_arr: list[re.Match] = self.find_sentence(file_ctx, re.escape(search.group()))
         else:
             raise AttributeError("Incorrect reference type")
 
@@ -143,8 +150,20 @@ class Searcher:
 
         # TODO: implement more optimal search algorithm
         for i in range(len(coordinate_arr)):
-            if coordinate_arr[i][0][0] <= search.start() <= coordinate_arr[i][0][1]:
-                return coordinate_arr[i][1].replace("\n", " ")
+            if coordinate_arr[i][0][0] <= search.start() and search.end() <= coordinate_arr[i][0][1]:
+                ref_len = coordinate_arr[i][0][1] - coordinate_arr[i][0][0]
+                len_per_side = (100 - len(search.group())) // 2
+                # Slice the string to get the reference
+                # Start at the beginning of the reference, or at the beginning of the sliced string (whichever length is smaller - index larger)
+                start_index = max(coordinate_arr[i][0][0], search.start() - len_per_side)
+                # End at the beginning of the reference, or at the beginning of the sliced string (whichever length is smaller - index smaller)
+                end_index = min(coordinate_arr[i][0][1], search.end() + len_per_side)
+                tmp = ("[...]" if start_index != coordinate_arr[i][0][0] else "") + \
+                      file_ctx[start_index:search.start()].replace("\n", " ") + "<b>" + \
+                      file_ctx[search.start():search.end()] + \
+                      "</b>" + file_ctx[search.end():end_index].replace("\n", " ") + \
+                      ("[...]" if end_index != coordinate_arr[i][0][1] else "")
+                return tmp
 
     def match(self, search, *, regex: bool = True):
         findings = MatchArray(self.dir, search)
@@ -153,8 +172,6 @@ class Searcher:
             search = re.escape(search)
         for root, dirs, files in tmp:
             for file in files:
-                if "Dokument" in file:
-                    logging.debug("debug")
                 if file.endswith(".docx"):
                     logging.debug(os.path.join(root, file))
                     doc = docx.process(os.path.join(root, file))
@@ -173,6 +190,15 @@ class Searcher:
                     except ValueError as e:
                         logging.warning(e)
                         doc = ""
+                elif any([file.endswith(filetype) for filetype in [".xlsx", ".xls", ".ods"]]):
+                    spreadsheet = pd.read_excel(os.path.join(root, file))
+                    # Custom reference loop for excel files
+                    for row in spreadsheet.index:
+                        for col in spreadsheet.columns:
+                            if tmp := self.find_in_file(str(spreadsheet[col][row]), search):
+                                for m in tmp:
+                                    findings.append(FileMatch(os.path.join(root, file), m.group(), f"Row {row}, Column {col.split(': ')[-1]}: <b>{spreadsheet[col][row]}</b>"))
+                    continue  # Skip the regular match finder
                 else:
                     logging.debug(os.path.join(root, file))
                     if not self.normalize:
@@ -183,14 +209,15 @@ class Searcher:
                             logging.warning("Could not match encoding for file " + str(os.path.join(root, file)))
                             doc = ""
                     else:
-                        normalizer_file = charset_normalizer.from_path(os.path.join(root, file))
-                        doc = str(normalizer_file.best())
+                        try:
+                            normalizer_file = charset_normalizer.from_path(os.path.join(root, file))
+                            doc = str(normalizer_file.best())
+                        except (FileNotFoundError, OSError, UnicodeDecodeError):
+                            logging.warning("Could not match encoding for file " + str(os.path.join(root, file)))
+                            doc = ""
                     logging.debug(doc)
 
                 if tmp := self.find_in_file(doc, search):
-                    # TODO: shits itself when there are multiple matches per reference
-                    # for match in tmp:
-                    #     findings.append(FileMatch(os.path.join(root, file), match, self.find_reference(doc, match)))
                     for m in tmp:
                         print(m.group(), m.start(), m.end())
                         findings.append(FileMatch(os.path.join(root, file), m.group(), self.find_reference(doc, m)))
@@ -209,10 +236,6 @@ if __name__ == "__main__":
     plt.figure(dpi=600)
 
     matches.draw_matches_per_file_graph()
-
-    # ax = plt.subplot(222)
-    # matches.draw_match_table(ax)
-
-    # plt.show()
-    plt.savefig("graph.png")
+    matches.write_matches_per_file_to_csv_file()
+    plt.show()
 

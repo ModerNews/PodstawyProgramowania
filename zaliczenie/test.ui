@@ -91,7 +91,9 @@
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="halign">center</property>
-                <property name="margin-right">15</property>
+                <property name="margin-left">30</property>
+                <property name="margin-right">10</property>
+                <property name="width-chars">30</property>
                 <property name="placeholder-text" translatable="yes">Poszukiwany teskt</property>
               </object>
               <packing>
@@ -105,9 +107,13 @@
                 <property name="can-focus">False</property>
                 <property name="tooltip-text" translatable="yes">Ścieżka, którą aplikacja przeiteruje w poszukiwaniu podanej treści</property>
                 <property name="halign">center</property>
-                <property name="margin-left">15</property>
-                <property name="margin-right">15</property>
+                <property name="margin-left">10</property>
+                <property name="margin-right">10</property>
                 <property name="action">select-folder</property>
+                <property name="create-folders">False</property>
+                <property name="preview-widget-active">False</property>
+                <property name="show-hidden">True</property>
+                <property name="use-preview-label">False</property>
                 <property name="title" translatable="yes">Ścieżka docelowa</property>
               </object>
               <packing>
@@ -124,6 +130,7 @@
                 <property name="tooltip-text" translatable="yes">Rozpocznij wyszukiwanie</property>
                 <property name="halign">center</property>
                 <property name="margin-left">15</property>
+                <property name="margin-right">30</property>
                 <signal name="clicked" handler="onButtonPressed" object="MainGrid" swapped="no"/>
               </object>
               <packing>
@@ -136,6 +143,69 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <!-- n-columns=3 n-rows=1 -->
+          <object class="GtkGrid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="valign">center</property>
+                <property name="margin-right">5</property>
+                <property name="label" translatable="yes">
+Typ odwołania:</property>
+                <property name="justify">right</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="relation_type">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-right">10</property>
+                <property name="margin-top">10</property>
+                <property name="active">0</property>
+                <property name="active-id">line</property>
+                <items>
+                  <item id="LINE" translatable="yes">Po lini</item>
+                  <item id="SENTENCE" translatable="yes">Po zdaniu</item>
+                </items>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="regex_enabled">
+                <property name="label" translatable="yes">Wyrażenia regex</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">False</property>
+                <property name="halign">center</property>
+                <property name="margin-left">10</property>
+                <property name="margin-top">10</property>
+                <property name="active">True</property>
+                <property name="draw-indicator">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">2</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
           </packing>
         </child>
         <child>
@@ -172,7 +242,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">3</property>
+            <property name="position">5</property>
           </packing>
         </child>
       </object>

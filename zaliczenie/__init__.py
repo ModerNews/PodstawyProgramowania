@@ -1,4 +1,5 @@
 import copy
+import re
 import shutil
 import sys
 import os
@@ -6,6 +7,8 @@ import platform
 
 import gi
 import matplotlib.pyplot as plt
+
+__active_windows__ = []
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Pango, GdkPixbuf
@@ -59,7 +62,7 @@ class ObjectCustomizer:
             new_match_string.set_property("visible", True)
             new_match_string.set_property("can-focus", False)
             new_match_string.set_property("halign", Gtk.Align.START)
-            new_match_string.set_property("label", group.reference)
+            new_match_string.set_markup(group.reference)
             new_match_string.modify_font(Pango.font_description_from_string("JetBrainsMono Nerd Font 12"))
 
             new_match_file = Gtk.Label()
@@ -79,10 +82,9 @@ class ObjectCustomizer:
         graph: Gtk.Dialog = self.builder.get_object("GraphLookupDialog")
 
         desired_width = 640
-        desired_height = 640
 
         pixbuf = Pixbuf.new_from_file(os.path.join(GLib.get_tmp_dir(), "graph.png"))
-        pixbuf = pixbuf.scale_simple(desired_width, desired_height, InterpType.BILINEAR)
+        pixbuf = pixbuf.scale_simple(desired_width, desired_width*(pixbuf.get_height()/pixbuf.get_width()), InterpType.BILINEAR)
         builder.get_object("graphImage").set_from_pixbuf(pixbuf)
         graph.add_button("Zapisz", Gtk.ResponseType.OK)
         graph.add_button("Anuluj", Gtk.ResponseType.CANCEL)
@@ -93,9 +95,12 @@ class Handler:
     def __init__(self, builder: Gtk.Builder):
         self.builder = builder
         self.object_builder = ObjectCustomizer(builder)
+        self.match_array = None
 
-    def onDeleteWindow(self, *args):
-        Gtk.main_quit(*args)
+    def onDeleteWindow(self, window: Gtk.Window, *args):
+        __active_windows__.remove(window)
+        if len(__active_windows__) == 0:
+            Gtk.main_quit(*sys.argv)
 
     def onButtonPressed(self, grid: Gtk.Grid):
         print("Button clicked!")
@@ -104,24 +109,39 @@ class Handler:
         self.builder.get_object("processing_indicator_grid").set_property("visible", True)
         print(entry_text, input_directory)
 
-        if entry_text == "" or input_directory is None:
-            self.showErrorDialog("Nie podano wszystkich wymaganych danych!")
+        if entry_text == "":
+            self.showErrorDialog("Nie podano tekstu.")
+            return
+        if input_directory is None:
+            self.showErrorDialog("Nie wybrano folderu lub nie udało się znaleźć folderu.")
             return
 
         self.builder.add_from_file('results.ui')  # Add new from file to assert that contents of window aren't destroyed
         self.builder.connect_signals(self)
-        search = Searcher(input_directory, Reference.LINE)
-        match = search.match(entry_text)
-        result = self.object_builder.instantiate_result_window(match)
-        if len(match.groups) == 0:
+        reference_type = Reference[self.builder.get_object("relation_type").get_active_id()]
+        use_regex = self.builder.get_object("regex_enabled").get_active()
+        search = Searcher(input_directory, reference_type)
+        try:
+            self.match_array = search.match(entry_text, regex=use_regex)
+        except re.error:
+            self.showErrorDialog("Niepoprawne wyrażenie regex.")
+            self.builder.get_object("processing_indicator_grid").set_property("visible", False)
+            return
+        result = self.object_builder.instantiate_result_window(self.match_array)
+        self.builder.get_object("all_matches").set_text(str(len(self.match_array.groups)))
+        self.builder.get_object("unique_matches").set_text(str(len(self.match_array.match_strings)))
+        self.builder.get_object("unique_file_matches").set_text(str(len(self.match_array.files)))
+        if len(self.match_array.groups) == 0:
             self.builder.get_object("processing_indicator_grid").set_property("visible", False)
             self.showErrorDialog("Nie znaleziono żadnych dopasowań!")
             return
         plt.figure(dpi=600)
-        match.draw_matches_per_file_graph()
+        self.match_array.draw_matches_per_file_graph()
         plt.savefig(os.path.join(GLib.get_tmp_dir(), "graph.png"))
 
         result.show_all()
+        __active_windows__.append(result)
+
         self.builder.get_object("processing_indicator_grid").set_property("visible", False)
 
     def showErrorDialog(self, message: str):
@@ -143,6 +163,7 @@ class Handler:
         self.builder.add_from_file("graph_dialog.ui")
         self.builder.connect_signals(self)
         graph = self.object_builder.instance_graph_dialog()
+        graph.set_title("Wykres wyników")
         graph.connect("response", self.onGraphDialogResponse)
         graph.show()
 
@@ -179,14 +200,14 @@ class Handler:
     def onSaveGraphDialogResponse(self, dialog: Gtk.FileChooserDialog, response: Gtk.ResponseType):
         if response == Gtk.ResponseType.OK:
             print("Saving graph to", dialog.get_filename())
-            shutil.move(os.path.join(GLib.get_tmp_dir(), "graph.png"), dialog.get_filename())
+            shutil.copy(os.path.join(GLib.get_tmp_dir(), "graph.png"), dialog.get_filename())
         dialog.close()
 
     def onSaveResultsDialogResponse(self, dialog: Gtk.FileChooserDialog, response: Gtk.ResponseType):
         if response == Gtk.ResponseType.OK:
             print("Saving results to", dialog.get_filename())
             dialog.close()
-            # TODO: Save results
+            self.match_array.write_matches_per_file_to_csv_file(dialog.get_filename())
         elif response == Gtk.ResponseType.CANCEL:
             print("Results saving cancelled.")
             dialog.close()
@@ -199,6 +220,7 @@ builder.connect_signals(handler)
 
 window = builder.get_object("MainWindow")
 window.show_all()
+__active_windows__.append(window)
 builder.get_object("processing_indicator_grid").set_property("visible",
                                                              False)  # Hide processing indicator, since template is visible by default
 Gtk.main()
